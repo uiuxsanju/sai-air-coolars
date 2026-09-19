@@ -239,9 +239,27 @@ header.navbar.scrolled{ box-shadow:var(--shadow-sm); border-color:var(--border);
 .nav-links a:hover{ color:var(--navy); }
 
 .nav-actions{ display:flex; align-items:center; gap:10px; }
-.icon-btn{ width:42px; height:42px; border-radius:11px; display:flex; align-items:center; justify-content:center; border:1px solid var(--border); background:#fff; color:var(--navy); }
+.icon-btn{ position:relative; width:42px; height:42px; border-radius:11px; display:flex; align-items:center; justify-content:center; border:1px solid var(--border); background:#fff; color:var(--navy); }
 .icon-btn svg{ width:19px; height:19px; }
 .icon-btn.whatsapp{ background:var(--whatsapp); border-color:var(--whatsapp); color:#fff; }
+
+/* ---- Blinking "Call Now" badge next to a call icon/symbol ---- */
+.call-badge{
+  position:absolute; top:-11px; left:50%; transform:translateX(-50%);
+  background:#E11D2E; color:#fff; font-family:var(--font-display); font-weight:800;
+  font-size:9.5px; letter-spacing:.02em; white-space:nowrap; padding:2.5px 7px;
+  border-radius:999px; box-shadow:0 3px 8px rgba(225,29,46,0.45); pointer-events:none; z-index:1;
+}
+.call-badge::after{
+  content:""; position:absolute; left:50%; bottom:-3px; transform:translateX(-50%);
+  width:6px; height:6px; background:#E11D2E; clip-path:polygon(0 0,100% 0,50% 100%);
+}
+@media (prefers-reduced-motion: no-preference){
+  .call-badge{ animation:callBlink 1.3s ease-in-out infinite; }
+}
+@keyframes callBlink{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
+.mobile-bar a.call{ position:relative; }
+.mobile-bar .call-badge{ top:0; }
 
 .menu-toggle{ display:none; }
 
@@ -703,6 +721,7 @@ footer.site-footer{ background:var(--navy); color:rgba(255,255,255,0.82); paddin
 
     <div class="nav-actions">
       <a class="icon-btn" id="navCall" href="#" aria-label="Call Sai Cool Care Services">
+        <span class="call-badge" aria-hidden="true">Call Now</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
       </a>
       <a class="icon-btn whatsapp" id="navWhatsapp" href="#" target="_blank" rel="noopener" aria-label="Chat with Sai Cool Care Services on WhatsApp">
@@ -1286,6 +1305,7 @@ footer.site-footer{ background:var(--navy); color:rgba(255,255,255,0.82); paddin
 <!-- ======================= MOBILE STICKY BAR ======================= -->
 <nav class="mobile-bar" aria-label="Quick actions">
   <a class="call" id="barCall" href="#">
+    <span class="call-badge" aria-hidden="true">Call Now</span>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
     Call
   </a>
@@ -1682,6 +1702,59 @@ function renderPremiumServices(){
   });
 }
 
+/* Auto-advance the "Our AC Services" card strip on mobile (where it becomes a horizontal
+   swipe list). Pauses the moment someone touches/swipes/scrolls it themselves, and resumes
+   a few seconds after they let go. Desktop grid is untouched — this only runs in the
+   mobile single-row layout, and never runs if the visitor has reduced-motion set. */
+function initServiceAutoScroll(){
+  const grid = document.getElementById("premiumServiceGrid");
+  if(!grid) return;
+  const mqMobile = window.matchMedia("(max-width:640px)");
+  const mqReduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let timer = null;
+  let paused = false;
+  let resumeTimer = null;
+
+  function cardStep(){
+    const card = grid.querySelector(".premium-card");
+    if(!card) return 0;
+    const style = getComputedStyle(grid);
+    const gap = parseFloat(style.columnGap || style.gap) || 16;
+    return card.getBoundingClientRect().width + gap;
+  }
+
+  function advance(){
+    if(paused) return;
+    const step = cardStep();
+    if(!step) return;
+    const atEnd = grid.scrollLeft + grid.clientWidth >= grid.scrollWidth - 4;
+    grid.scrollTo({ left: atEnd ? 0 : grid.scrollLeft + step, behavior:"smooth" });
+  }
+
+  function stop(){ if(timer){ clearInterval(timer); timer = null; } }
+  function start(){
+    stop();
+    if(!mqMobile.matches || mqReduced.matches) return;
+    timer = setInterval(advance, 3200);
+  }
+
+  function pauseForAWhile(){
+    paused = true;
+    clearTimeout(resumeTimer);
+    resumeTimer = setTimeout(()=>{ paused = false; }, 4500);
+  }
+  ["pointerdown","touchstart","wheel"].forEach(evt =>
+    grid.addEventListener(evt, pauseForAWhile, { passive:true })
+  );
+
+  const onMqChange = () => start();
+  (mqMobile.addEventListener ? mqMobile.addEventListener.bind(mqMobile) : mqMobile.addListener.bind(mqMobile))("change", onMqChange);
+  (mqReduced.addEventListener ? mqReduced.addEventListener.bind(mqReduced) : mqReduced.addListener.bind(mqReduced))("change", onMqChange);
+  window.addEventListener("resize", start);
+
+  start();
+}
+
 function openServiceModal(id){
   const svc = PREMIUM_SERVICES.find(s=>s.id===id);
   if(!svc) return;
@@ -1987,7 +2060,11 @@ function initWaBubble(){
   if(!bubble || !floatBtn) return;
 
   let dismissed = false;
-  const showTimer = setTimeout(()=>{ if(!dismissed) bubble.classList.add("show"); }, 3500);
+  // Only offer the greeting while the visitor is still up near the hero —
+  // never pop it open over content they've scrolled down to read (service cards, etc.)
+  const showTimer = setTimeout(()=>{
+    if(!dismissed && window.scrollY < 400) bubble.classList.add("show");
+  }, 3500);
   const hideTimer = () => setTimeout(()=>{ bubble.classList.remove("show"); }, 9000);
   let autoHide;
 
@@ -1996,6 +2073,15 @@ function initWaBubble(){
       autoHide = hideTimer();
     }
   });
+
+  // The moment the visitor scrolls, dismiss it for good so it can never sit on top of a card.
+  window.addEventListener("scroll", ()=>{
+    if(dismissed) return;
+    dismissed = true;
+    clearTimeout(showTimer);
+    clearTimeout(autoHide);
+    bubble.classList.remove("show");
+  }, { passive:true });
 
   closeBtn.addEventListener("click", (e)=>{
     e.preventDefault(); e.stopPropagation();
@@ -2042,6 +2128,7 @@ function initChrome(){
 document.addEventListener("DOMContentLoaded", ()=>{
   wireContactButtons();
   renderPremiumServices();
+  initServiceAutoScroll();
   initServiceModal();
   renderTabs();
   renderServiceGrid();
