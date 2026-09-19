@@ -1735,13 +1735,13 @@ function initServiceAutoScroll(){
   function start(){
     stop();
     if(!mqMobile.matches || mqReduced.matches) return;
-    timer = setInterval(advance, 3200);
+    timer = setInterval(advance, 1600);
   }
 
   function pauseForAWhile(){
     paused = true;
     clearTimeout(resumeTimer);
-    resumeTimer = setTimeout(()=>{ paused = false; }, 4500);
+    resumeTimer = setTimeout(()=>{ paused = false; }, 3000);
   }
   ["pointerdown","touchstart","wheel"].forEach(evt =>
     grid.addEventListener(evt, pauseForAWhile, { passive:true })
